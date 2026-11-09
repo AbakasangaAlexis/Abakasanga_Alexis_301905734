@@ -1,0 +1,32 @@
+{
+  "_comment": "PORTFOLIO 4: NOSQL & POLYGLOT PERSISTENCE (MongoDB Document Model)",
+  "student_name": "Alexis Abakasanga",
+  "student_id": "301905734",
+  "system": "ShopQuick E-Commerce Platform",
+  "products_collection": [
+    {
+      "_id": "PROD_1004",
+      "product_name": "Mechanical Gaming Keyboard",
+      "category": "Electronics",
+      "price": 32000.00,
+      "stock_quantity": 45,
+      "specifications": {
+        "switch_type": "Cherry MX Red",
+        "connectivity": "USB-C Braided Cable",
+        "backlight": "RGB Multi-Zone",
+        "warranty_months": 24
+      },
+      "tags": ["gaming", "peripherals", "electronics", "keyboards"],
+      "reviews": [
+        {
+          "review_id": "REV_901",
+          "customer_id": 301905734,
+          "reviewer_name": "Alexis Abakasanga",
+          "rating": 5,
+          "comment": "Exceptional key actuation and build quality.",
+          "timestamp": "2026-11-09T10:00:00Z"
+        }
+      ]
+    }
+  ]
+}
