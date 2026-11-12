@@ -1,0 +1,20 @@
+# OPTIONAL local 3-node MongoDB replica set for replication evidence (needs Docker Desktop).
+#   docker compose up -d
+#   docker exec -it mongo1 mongosh --eval 'rs.initiate({_id:"rs0",members:[{_id:0,host:"mongo1:27017"},{_id:1,host:"mongo2:27017"},{_id:2,host:"mongo3:27017"}]})'
+#   docker exec -it mongo1 mongosh --file /scripts/01_replica_set_status.js
+# Failover test: docker stop mongo1  -> wait ~10 s -> docker exec -it mongo2 mongosh --eval 'rs.status().members.map(m=>[m.name,m.stateStr])'
+services:
+  mongo1:
+    image: mongo:7
+    container_name: mongo1
+    command: ["--replSet", "rs0", "--bind_ip_all"]
+    ports: ["27017:27017"]
+    volumes: ["./:/scripts:ro"]
+  mongo2:
+    image: mongo:7
+    container_name: mongo2
+    command: ["--replSet", "rs0", "--bind_ip_all"]
+  mongo3:
+    image: mongo:7
+    container_name: mongo3
+    command: ["--replSet", "rs0", "--bind_ip_all"]

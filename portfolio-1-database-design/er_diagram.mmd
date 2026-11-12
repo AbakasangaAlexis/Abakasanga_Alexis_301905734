@@ -1,0 +1,98 @@
+erDiagram
+    FLOW_STATION ||--o{ WELL : "receives fluids from"
+    FLOW_STATION ||--o{ EQUIPMENT : houses
+    FLOW_STATION ||--o{ HSE_INCIDENT : records
+    WELL ||--o{ PRODUCTION_READING : "measured by"
+    EQUIPMENT ||--o{ WORK_ORDER : "needs"
+    EQUIPMENT |o--o{ HSE_INCIDENT : "involved in"
+    WORK_ORDER ||--|{ WORK_ORDER_ASSIGNMENT : "staffed through"
+    TECHNICIAN ||--o{ WORK_ORDER_ASSIGNMENT : performs
+    WORK_ORDER ||--o{ WORK_ORDER_PART : "consumes via"
+    SPARE_PART ||--o{ WORK_ORDER_PART : "used in"
+
+    FLOW_STATION {
+        int station_id PK
+        varchar station_code UK
+        varchar station_name
+        varchar region
+        varchar state
+        date commissioned_date
+        int design_capacity_bopd
+    }
+    WELL {
+        int well_id PK
+        int station_id FK
+        varchar well_name UK
+        varchar well_type
+        varchar status
+        date spud_date
+        int depth_ft
+    }
+    EQUIPMENT {
+        int equipment_id PK
+        int station_id FK
+        varchar tag_number UK
+        varchar equipment_type
+        varchar manufacturer
+        date install_date
+        smallint criticality
+        varchar status
+    }
+    PRODUCTION_READING {
+        bigint reading_id PK
+        int well_id FK
+        date reading_date
+        numeric oil_bbl
+        numeric gas_mscf
+        numeric water_bbl
+        smallint choke_size_64ths
+    }
+    TECHNICIAN {
+        int technician_id PK
+        varchar full_name
+        varchar trade
+        varchar email UK
+        date hire_date
+        boolean is_active
+    }
+    WORK_ORDER {
+        int work_order_id PK
+        int equipment_id FK
+        varchar wo_type
+        smallint priority
+        varchar status
+        text description
+        timestamp raised_at
+        timestamp started_at
+        timestamp completed_at
+        numeric downtime_hours
+    }
+    WORK_ORDER_ASSIGNMENT {
+        int work_order_id PK, FK
+        int technician_id PK, FK
+        varchar role
+        numeric hours_worked
+    }
+    SPARE_PART {
+        int part_id PK
+        varchar part_number UK
+        varchar description
+        numeric unit_cost_usd
+        int quantity_on_hand
+        int reorder_level
+    }
+    WORK_ORDER_PART {
+        int work_order_id PK, FK
+        int part_id PK, FK
+        int quantity_used
+    }
+    HSE_INCIDENT {
+        int incident_id PK
+        int station_id FK
+        int equipment_id FK
+        date incident_date
+        varchar category
+        smallint severity
+        text description
+        int lost_time_days
+    }

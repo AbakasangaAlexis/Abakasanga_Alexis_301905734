@@ -1,0 +1,26 @@
+flowchart TB
+    subgraph HQ["Regional hub: Port Harcourt (primary region)"]
+        PGP[("PostgreSQL PRIMARY<br/>work orders, stock<br/>(CP, ACID)")]
+        MP[("MongoDB replica set<br/>PRIMARY")]
+    end
+    subgraph DR["Disaster-recovery region: Lagos"]
+        PGS[("PostgreSQL STANDBY<br/>synchronous replica")]
+        MS1[("MongoDB SECONDARY")]
+    end
+    subgraph AN["Analytics (BASE / eventual)"]
+        PGA[("PostgreSQL async replica<br/>reports")]
+        LAKE[["Data lake + warehouse<br/>(e.g. BigQuery)"]]
+    end
+    subgraph SITES["Field sites (horizontal fragments by region)"]
+        E["ONSHORE_EAST: Eket, Ibeno"]
+        W["ONSHORE_WEST: Obagi"]
+        S["SWAMP: Bonny"]
+        O["OFFSHORE: Oshi"]
+    end
+    SITES -- "sensors via Kafka / edge gateway" --> MP
+    SITES -- "work orders, readings" --> PGP
+    PGP -- "synchronous streaming" --> PGS
+    PGP -- "asynchronous streaming" --> PGA
+    MP -- "replication (w: majority)" --> MS1
+    PGA --> LAKE
+    MP -- "change stream / batch" --> LAKE
