@@ -2,7 +2,7 @@
 -- Portfolio 1: Relational schema
 -- Case study : Niger Delta Flow Systems Ltd (NDFS) - fictional upstream
 --              operator. Flow station and asset maintenance database.
--- DBMS       : PostgreSQL 16
+-- DBMS       : PostgreSQL 18.6 (also works on 16+)
 -- Run        : psql -U postgres -d ndfs_db -f 01_schema.sql
 -- =====================================================================
 

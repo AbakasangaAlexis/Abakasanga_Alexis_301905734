@@ -1,7 +1,7 @@
 # Portfolio 1: Database Design and Modelling
 
 **Case study:** Niger Delta Flow Systems Ltd (fictional). See [CASE_STUDY.md](CASE_STUDY.md).
-**DBMS:** PostgreSQL 16.
+**DBMS:** PostgreSQL 18.6 on Windows (psql and pgAdmin 4).
 
 ## Design process (stages from Session 1)
 1. **Requirements:** record production per well per day, maintain equipment, raise and staff work orders, track spare-part stock, log HSE incidents, report by station.

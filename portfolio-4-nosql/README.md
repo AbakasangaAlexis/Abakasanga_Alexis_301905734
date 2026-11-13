@@ -1,7 +1,7 @@
 # Portfolio 4: NoSQL and Advanced Data Models
 
 **Case study:** NDFS flow station and maintenance system (same organisation as Portfolios 1 to 3).
-**NoSQL system:** MongoDB 7 (document model, plus a time-series collection).
+**NoSQL system:** MongoDB 8.0.37 on MongoDB Atlas (document model, plus a time-series collection).
 **Where it ran:** MongoDB Atlas free tier (M0), MongoDB 8.0.37, AWS Paris (eu-west-3), using mongosh 2.14.2 from Windows PowerShell.
 All outputs in `evidence/` (`p4_01_setup.txt` to `p4_04_explain.txt`) are from my own runs.
 
