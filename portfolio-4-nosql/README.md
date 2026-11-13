@@ -2,7 +2,8 @@
 
 **Case study:** NDFS flow station and maintenance system (same organisation as Portfolios 1 to 3).
 **NoSQL system:** MongoDB 7 (document model, plus a time-series collection).
-**Status note:** the scripts were syntax-checked, but you must run them yourself against your own MongoDB (local or Atlas) and capture your own screenshots.
+**Where it ran:** MongoDB Atlas free tier (M0), MongoDB 8.0.37, AWS Paris (eu-west-3), using mongosh 2.14.2 from Windows PowerShell.
+All outputs in `evidence/` (`p4_01_setup.txt` to `p4_04_explain.txt`) are from my own runs.
 
 ## Why MongoDB for part of NDFS
 The relational design remains the system of record for transactional, strongly related data (stock, work-order
@@ -48,6 +49,31 @@ Option B, local MongoDB Community Server: `mongosh "mongodb://localhost:27017" -
 
 Screenshots to capture: collection list (01), document counts (02), outputs of Q1 to Q6 and the validation rejection (03),
 and the COLLSCAN to IXSCAN comparison (04). Atlas users can also screenshot the Data Explorer showing the documents.
+
+## What I observed (my runs)
+| Step | Result | Evidence |
+|---|---|---|
+| Setup | `equipment_specs` (with `$jsonSchema` validator), `work_orders` and `sensor_telemetry` created; telemetry created as a **time-series** collection | `p4_01_*` |
+| Load | 10 equipment documents, 20,000 work orders, 4,032 telemetry readings | `p4_02_*` |
+| Schema flexibility | Pump documents hold `flow_rate_m3h`, `head_m`; compressor documents hold `stages`, `discharge_pressure_bar`, in the same collection with no schema change | `p4_02_atlas_equipment_docs.png` |
+| Embedding | Each work order carries its `assignments` and `parts` arrays, so one read returns the whole job | `p4_02_atlas_work_order_embedded.png` |
+| Queries | Q1/Q2 filtered on type-specific fields; Q3 aggregated parts cost per tag; Q4 averaged vibration per hour; Q5 flagged OBG-P-101 above the 7.1 mm/s alarm limit; Q6 joined orders to equipment with `$lookup` | `p4_03_*` |
+| Validation | An equipment document without a `station` was rejected: "Document failed validation" | `p4_03_V1_validation.png` |
+
+### Indexing in MongoDB (compare with Portfolio 2)
+Query: emergency work orders for one pump, newest first (`{equipment_tag, wo_type}` sorted by `raised_at`).
+
+| | Plan | Documents examined | Keys examined | Returned | Time |
+|---|---|---|---|---|---|
+| Before index | `SORT <- COLLSCAN` | 20,000 | 0 | 517 | 17 ms |
+| After `idx_tag_type_raised` | `FETCH <- IXSCAN` | 517 | 517 | 517 | 2 ms |
+| Open backlog, partial index `idx_open_backlog` | `FETCH <- IXSCAN` | 42 | 42 | 42 | 1 ms |
+
+Before the index MongoDB read all 20,000 documents and then sorted them in memory to return 517. With the compound index it
+read exactly the 517 matching entries, already in `raised_at` order, so the in-memory `SORT` stage disappeared. The ratio of
+documents examined to documents returned went from about 39:1 to 1:1, which is the ideal. The partial index only contains the
+42 open orders, the same idea as the PostgreSQL partial index in Portfolio 2. The millisecond values are small because the data
+set is small, so the documents-examined figures are the better evidence.
 
 ## Evaluating suitability (framework from Session 1)
 | Criterion | Assessment for NDFS equipment/work-order/telemetry data |

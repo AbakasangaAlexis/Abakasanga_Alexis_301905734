@@ -4,10 +4,18 @@
 // Look at: winningPlan.stage (COLLSCAN vs IXSCAN), totalDocsExamined, nReturned, executionTimeMillis
 // =====================================================================
 const ndfs = db.getSiblingDB("ndfs_nosql");
+// Collect every stage name in the winning plan (works for classic and slot-based plans in MongoDB 7/8)
+function stages(node, out) {
+  if (!node || typeof node !== "object") return out;
+  if (node.stage) out.push(node.stage + (node.indexName ? "(" + node.indexName + ")" : ""));
+  ["queryPlan", "inputStage"].forEach(k => stages(node[k], out));
+  (node.inputStages || []).forEach(n => stages(n, out));
+  return out;
+}
 function summary(label, ex) {
   const s = ex.executionStats;
-  print(label + ": stage=" + JSON.stringify(ex.queryPlanner.winningPlan.stage || ex.queryPlanner.winningPlan.inputStage?.stage) +
-        "  docsExamined=" + s.totalDocsExamined + "  keysExamined=" + s.totalKeysExamined +
+  print(label + ":\n   plan = " + stages(ex.queryPlanner.winningPlan, []).join(" <- ") +
+        "\n   docsExamined=" + s.totalDocsExamined + "  keysExamined=" + s.totalKeysExamined +
         "  returned=" + s.nReturned + "  time=" + s.executionTimeMillis + " ms");
 }
 
