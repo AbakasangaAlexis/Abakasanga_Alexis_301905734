@@ -1,6 +1,6 @@
 # Portfolio 3: Transactions and Concurrency
 
-**Case study:** NDFS maintenance and spare-parts workflow. **DBMS:** PostgreSQL 16 (default isolation: READ COMMITTED).
+**Case study:** NDFS maintenance and spare-parts workflow. **DBMS:** PostgreSQL 18.6 on Windows (default isolation: READ COMMITTED). Two SQL Shell (psql) windows were used as Session A and Session B.
 
 Business scenario: when a technician finishes a job, the system records the work, records the parts used and deducts
 stock. Several store officers and planners do this at the same time, so the database must keep stock correct.
@@ -27,16 +27,26 @@ in the order labelled. Screenshot each session side by side.
 | Isolation | Demos 02 and 03 (what one session can see of another's uncommitted/committed changes) |
 | Durability | After COMMIT the change survives; PostgreSQL writes it to the write-ahead log (WAL) first |
 
-## Expected observations (compare with your screenshots)
-| Experiment | What you should see | Why |
-|---|---|---|
-| 2A | Final stock = 1 although 4 valves were issued from 3 | Both sessions wrote a value calculated from a stale read: **lost update** |
-| 2B | Session B waits, then sees 1 | `FOR UPDATE` row lock serialises the two officers |
-| 2C | Session B reports `UPDATE 0` | The WHERE clause is re-evaluated on the committed row; insufficient stock is detected without an explicit lock |
-| 3A | Same query returns 12 then 9 | READ COMMITTED sees each newly committed value: non-repeatable read |
-| 3B | Reads stay 12; the UPDATE fails with SQLSTATE 40001 | REPEATABLE READ gives a stable snapshot and refuses conflicting writes; the application retries |
-| 3C | One of two commits is rejected with 40001 | SERIALIZABLE detects write skew (both transactions saw 2 active technicians) |
-| 4 | `ERROR: deadlock detected` in one session | Opposite lock order creates a cycle; PostgreSQL aborts one victim |
+## What I observed (my runs)
+| Experiment | What happened on my machine | Why | Evidence |
+|---|---|---|---|
+| 1A Commit | Bearing stock went 20 -> 18 and the work order became COMPLETED in one transaction | All steps committed together | `p3_01_*.png` |
+| 1B Rollback | Stock showed 7 inside the transaction, then went back to 12 after ROLLBACK | ROLLBACK undoes every change | `p3_01_*.png` |
+| 1C Failure | Asking for 5 valves with 3 in stock raised `ck_part_qty`; the transaction was aborted, 0 orders saved, stock still 3 | Atomicity: a failed step cancels the whole job | `p3_01_*.png` |
+| 1D Savepoint | Only the failed step was undone; the order was kept and 2 valves were used (3 -> 1) | `ROLLBACK TO SAVEPOINT` is a partial undo | `p3_01_*.png` |
+| 2A Lost update | Both sessions read 3 and both wrote 1; final stock 1 although 4 valves were issued | B overwrote A's change based on a stale read | `p3_02_lost_update.png` |
+| 2B FOR UPDATE | Session B waited, then saw 1 instead of 3 | The row lock made the two officers take turns | `p3_03a/b_*.png` |
+| 2C Conditional UPDATE | Session B waited, then got `UPDATE 0` | PostgreSQL re-checked `quantity_on_hand >= 2` against the committed value | `p3_03c_atomic_update.png` |
+| 3A READ COMMITTED | The same query returned 12, then 9, inside one transaction | Each statement sees the latest committed data (non-repeatable read) | `p3_04a_read_committed.png` |
+| 3B REPEATABLE READ | Reads stayed at 12; my UPDATE failed with `could not serialize access due to concurrent update` | Stable snapshot; conflicting writes are refused | `p3_04b_repeatable_read.png` |
+| 3C SERIALIZABLE | Both sessions saw 2 active technicians; A committed, B failed with `read/write dependencies among transactions`; technician 4 stayed active | Write skew detected and prevented | `p3_05_serializable.png` |
+| 4 Deadlock | Session B received `deadlock detected`; Session A completed and committed | Opposite lock order made a cycle; PostgreSQL cancelled one victim | `p3_06_deadlock.png` |
+| 5 Function | First call used 2 valves and printed a REORDER ALERT; second call was refused with `Insufficient stock`; stock stayed at 1 | Lock, check, record and deduct happen as one unit | `p3_07_consume_part_function.png` |
+
+**Something I learned the hard way.** On my first attempt at the SERIALIZABLE test, Session B read the count only
+after Session A had already committed, so B saw 1 instead of 2 and no error appeared. SERIALIZABLE can only detect the
+conflict when both transactions read before either one writes. Re-running it in the correct order produced the expected
+error. This showed me that concurrency problems depend on exact timing, which is why they are hard to spot in testing.
 
 ## Choosing a control mechanism (discussion for your write-up)
 - **Atomic conditional UPDATE (2C)** is the simplest and fastest when the rule is a single-row check.
