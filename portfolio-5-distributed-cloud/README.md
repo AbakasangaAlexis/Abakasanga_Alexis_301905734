@@ -81,7 +81,36 @@ access to replicas); IP allow-listing / private networking; audit logging.
 - **Sharding is design evidence only** unless you run a sharded cluster; free Atlas tiers do not shard. Say so explicitly in your write-up.
 - **Possible improvement (edge/IoT):** process telemetry at an edge gateway, forward only aggregates and alarms.
 
-## 8. Files and evidence checklist
+## 8. What I observed on MongoDB Atlas (my runs)
+Cluster: Atlas free tier (M0), MongoDB 8.0.37, AWS Paris (eu-west-3). Outputs: `evidence/p5_02_replica_set.txt`, `evidence/p5_03_write_concern.txt`.
+
+**Replication is real even on the free tier.** `Cluster0` is a 3-member replica set named `atlas-b3w68l-shard-0`:
+
+| Member | State | Health |
+|---|---|---|
+| `ac-9qimgbg-shard-00-00` | SECONDARY | 1 |
+| `ac-9qimgbg-shard-00-01` | PRIMARY | 1 |
+| `ac-9qimgbg-shard-00-02` | SECONDARY | 1 |
+
+All writes go to the primary and are copied to the two secondaries. If the primary fails, the secondaries elect a new
+primary automatically, which is the high-availability behaviour described in Section 3.
+
+**Choosing consistency per operation (CAP in practice).**
+| Operation | Setting | Result | Meaning for NDFS |
+|---|---|---|---|
+| Closing a work order | `writeConcern: { w: "majority" }` | acknowledged after at least 2 of 3 members had it | Consistency first (CP): a closed job survives a failover |
+| Reading it back | `readConcern: "majority"` | returned 1 document | Never reads data that could later be rolled back |
+| Telemetry sample | `writeConcern: { w: 1 }` | acknowledged by the primary only | Availability and speed first (AP): losing one sensor sample in a failover is acceptable |
+| Regional dashboard read | `readPreference: "secondaryPreferred"` | saw 2 documents from a secondary | Spreads read load and can be served near the user; may lag the primary slightly (eventual consistency) |
+
+In this run the secondary had already caught up, so it returned both documents. Under heavy load or a slow link it could
+briefly return fewer, which is the trade-off of reading from a secondary.
+
+**What I could not demonstrate.** Sharding is not available on the free tier, so `03_sharding_reference.js` records the
+design and commands without being run. A multi-region deployment and a forced failover would also need a paid tier or a
+local Docker replica set (`docker-compose.yml`), which I did not run.
+
+## 9. Files and evidence checklist
 | File | Evidence you should capture |
 |---|---|
 | `architecture.png` / `architecture.mmd` | Included in your summary |
