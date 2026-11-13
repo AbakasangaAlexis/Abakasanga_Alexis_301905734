@@ -65,18 +65,27 @@ FROM (
   FROM generate_series(1,200000)
 ) s;
 
--- One lead technician and one member per historical order (members always differ from the lead)
+-- One lead technician and one member per historical order (members always differ from the lead).
+-- Technicians are picked by POSITION (row number), not by raw id, because ids can have gaps
+-- (for example, a failed insert in the Portfolio 1 constraint tests consumes a sequence value).
+WITH t AS (SELECT technician_id, (row_number() OVER (ORDER BY technician_id) - 1) AS pos FROM technician),
+     n AS (SELECT count(*) AS cnt FROM technician)
 INSERT INTO work_order_assignment (work_order_id, technician_id, role, hours_worked)
-SELECT work_order_id, 1 + (work_order_id * 7) % 40, 'LEAD', round((2 + (work_order_id % 20))::numeric, 1)
-FROM work_order WHERE work_order_id > 10
+SELECT wo.work_order_id, t.technician_id, 'LEAD', round((2 + (wo.work_order_id % 20))::numeric, 1)
+FROM work_order wo CROSS JOIN n JOIN t ON t.pos = (wo.work_order_id * 7) % n.cnt
+WHERE wo.work_order_id > 10
 UNION ALL
-SELECT work_order_id, 1 + (work_order_id * 7 + 13) % 40, 'MEMBER', round((1 + (work_order_id % 10))::numeric, 1)
-FROM work_order WHERE work_order_id > 10;
+SELECT wo.work_order_id, t.technician_id, 'MEMBER', round((1 + (wo.work_order_id % 10))::numeric, 1)
+FROM work_order wo CROSS JOIN n JOIN t ON t.pos = (wo.work_order_id * 7 + 13) % n.cnt
+WHERE wo.work_order_id > 10;
 
 -- One spare part per historical order
 INSERT INTO work_order_part (work_order_id, part_id, quantity_used)
-SELECT work_order_id, 1 + (work_order_id % 8), 1 + (work_order_id % 3)
-FROM work_order WHERE work_order_id > 10;
+SELECT wo.work_order_id, p.part_id, 1 + (wo.work_order_id % 3)
+FROM work_order wo
+JOIN (SELECT part_id, (row_number() OVER (ORDER BY part_id) - 1) AS pos FROM spare_part) p
+  ON p.pos = wo.work_order_id % 8
+WHERE wo.work_order_id > 10;
 
 ANALYZE;
 

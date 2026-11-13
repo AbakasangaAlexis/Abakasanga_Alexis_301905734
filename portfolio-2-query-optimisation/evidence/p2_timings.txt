@@ -1,0 +1,13 @@
+MIT 8103 - Portfolio 2 timings (Alexis Abakasanga, 301905734)
+Machine: PostgreSQL 18.6 on Windows. Source: evidence/p2_before_plans.txt and evidence/p2_after_plans.txt
+Speed-up = time before / time after. Buffers = pages touched (shared hit + read).
+
+Query | Scan BEFORE                                         | Before (ms) | Scan AFTER                                      | After (ms) | Speed-up | Buffers before -> after
+------|-----------------------------------------------------|-------------|-------------------------------------------------|------------|----------|------------------------
+Q1    | Bitmap Index Scan uq_reading_well_date (skip, 62)   | 18.976      | Index Only Scan idx_reading_date_cov            | 16.694     | 1.1x     | 429 -> 137
+Q2    | Bitmap Index Scan uq_reading_well_date (skip, 61)   | 5.017       | Index Only Scan idx_reading_date_cov            | 4.648      | 1.1x     | 243 -> 40
+Q3    | Bitmap Index Scan uq_reading_well_date (skip, 62)   | 0.218       | Index Only Scan idx_reading_date_cov            | 0.066      | 3.3x     | 153 -> 4
+Q4    | Parallel Seq Scan on work_order                     | 178.175     | Bitmap Index Scan idx_wo_equipment_raised       | 2.317      | 77x      | 3471 -> 1305
+Q5    | Parallel Seq Scan on work_order                     | 169.847     | Bitmap Index Scan idx_wo_open_backlog (partial) | 0.092      | 1846x    | 3403 -> 4
+Q6    | Parallel Seq Scan work_order + pkey scan wop        | 341.605     | Bitmap Index Scan idx_wo_raised_at + pkey scan  | 270.712    | 1.3x     | 7234 -> 5399
+Q7    | Bitmap Index Scan uq_reading_well_date (skip, 62)   | 16.922      | Index Only Scan idx_reading_date_cov            | 14.149     | 1.2x     | 429 -> 137

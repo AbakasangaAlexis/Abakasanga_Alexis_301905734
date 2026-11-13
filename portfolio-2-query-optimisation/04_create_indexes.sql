@@ -31,7 +31,7 @@ CREATE INDEX idx_equip_station ON equipment (station_id);
 
 ANALYZE;
 
-\echo '--- Index sizes (cost of indexing: disk space and slower writes)'
+\qecho '--- Index sizes (cost of indexing: disk space and slower writes)'
 SELECT indexrelname AS index_name, pg_size_pretty(pg_relation_size(indexrelid)) AS size
 FROM pg_stat_user_indexes
 WHERE relname IN ('production_reading','work_order','equipment')

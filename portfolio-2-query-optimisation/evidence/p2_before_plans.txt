@@ -1,0 +1,288 @@
+DROP INDEX
+ANALYZE
+=== Q1: Total oil, gas and water produced by each flow station in 2025
+                                                                            QUERY PLAN                                                                            
+------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=2447.78..2447.79 rows=5 width=126) (actual time=18.831..18.832 rows=5.00 loops=1)
+   Sort Key: (sum(pr.oil_bbl)) DESC
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=429
+   ->  HashAggregate  (cost=2447.63..2447.72 rows=5 width=126) (actual time=18.816..18.819 rows=5.00 loops=1)
+         Group Key: fs.station_code
+         Batches: 1  Memory Usage: 32kB
+         Buffers: shared hit=429
+         ->  Hash Join  (cost=669.14..2229.48 rows=21815 width=48) (actual time=1.928..12.315 rows=21900.00 loops=1)
+               Hash Cond: (w.station_id = fs.station_id)
+               Buffers: shared hit=429
+               ->  Hash Join  (cost=668.03..2122.57 rows=21815 width=22) (actual time=1.878..8.584 rows=21900.00 loops=1)
+                     Hash Cond: (pr.well_id = w.well_id)
+                     Buffers: shared hit=428
+                     ->  Bitmap Heap Scan on production_reading pr  (cost=665.68..2058.90 rows=21815 width=22) (actual time=1.844..3.821 rows=21900.00 loops=1)
+                           Recheck Cond: ((reading_date >= '2025-01-01'::date) AND (reading_date <= '2025-12-31'::date))
+                           Heap Blocks: exact=183
+                           Buffers: shared hit=427
+                           ->  Bitmap Index Scan on uq_reading_well_date  (cost=0.00..660.22 rows=21815 width=0) (actual time=1.767..1.767 rows=21900.00 loops=1)
+                                 Index Cond: ((reading_date >= '2025-01-01'::date) AND (reading_date <= '2025-12-31'::date))
+                                 Index Searches: 62
+                                 Buffers: shared hit=244
+                     ->  Hash  (cost=1.60..1.60 rows=60 width=8) (actual time=0.018..0.018 rows=60.00 loops=1)
+                           Buckets: 1024  Batches: 1  Memory Usage: 11kB
+                           Buffers: shared hit=1
+                           ->  Seq Scan on well w  (cost=0.00..1.60 rows=60 width=8) (actual time=0.007..0.011 rows=60.00 loops=1)
+                                 Buffers: shared hit=1
+               ->  Hash  (cost=1.05..1.05 rows=5 width=34) (actual time=0.039..0.040 rows=5.00 loops=1)
+                     Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                     Buffers: shared hit=1
+                     ->  Seq Scan on flow_station fs  (cost=0.00..1.05 rows=5 width=34) (actual time=0.015..0.016 rows=5.00 loops=1)
+                           Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=46
+ Planning Time: 1.188 ms
+ Execution Time: 18.976 ms
+(36 rows)
+
+=== Q2: Top 10 wells by oil production in the last 90 days (to 31 Oct 2026)
+                                                                              QUERY PLAN                                                                              
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=1523.67..1523.70 rows=10 width=48) (actual time=4.948..4.951 rows=10.00 loops=1)
+   Buffers: shared hit=243
+   ->  Sort  (cost=1523.67..1524.42 rows=300 width=48) (actual time=4.947..4.948 rows=10.00 loops=1)
+         Sort Key: (sum(pr.oil_bbl)) DESC
+         Sort Method: top-N heapsort  Memory: 26kB
+         Buffers: shared hit=243
+         ->  HashAggregate  (cost=1513.44..1517.19 rows=300 width=48) (actual time=4.911..4.926 rows=60.00 loops=1)
+               Group Key: w.well_name, fs.station_code
+               Batches: 1  Memory Usage: 72kB
+               Buffers: shared hit=243
+               ->  Hash Join  (cost=292.79..1471.51 rows=5591 width=22) (actual time=0.901..3.483 rows=5484.00 loops=1)
+                     Hash Cond: (w.station_id = fs.station_id)
+                     Buffers: shared hit=243
+                     ->  Hash Join  (cost=291.68..1443.28 rows=5591 width=18) (actual time=0.869..2.678 rows=5484.00 loops=1)
+                           Hash Cond: (pr.well_id = w.well_id)
+                           Buffers: shared hit=242
+                           ->  Bitmap Heap Scan on production_reading pr  (cost=289.33..1425.22 rows=5591 width=10) (actual time=0.821..1.504 rows=5484.00 loops=1)
+                                 Recheck Cond: (reading_date > '2026-08-02'::date)
+                                 Heap Blocks: exact=47
+                                 Buffers: shared hit=241
+                                 ->  Bitmap Index Scan on uq_reading_well_date  (cost=0.00..287.93 rows=5591 width=0) (actual time=0.796..0.796 rows=5484.00 loops=1)
+                                       Index Cond: (reading_date > '2026-08-02'::date)
+                                       Index Searches: 61
+                                       Buffers: shared hit=194
+                           ->  Hash  (cost=1.60..1.60 rows=60 width=16) (actual time=0.034..0.034 rows=60.00 loops=1)
+                                 Buckets: 1024  Batches: 1  Memory Usage: 11kB
+                                 Buffers: shared hit=1
+                                 ->  Seq Scan on well w  (cost=0.00..1.60 rows=60 width=16) (actual time=0.011..0.021 rows=60.00 loops=1)
+                                       Buffers: shared hit=1
+                     ->  Hash  (cost=1.05..1.05 rows=5 width=12) (actual time=0.022..0.022 rows=5.00 loops=1)
+                           Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                           Buffers: shared hit=1
+                           ->  Seq Scan on flow_station fs  (cost=0.00..1.05 rows=5 width=12) (actual time=0.014..0.015 rows=5.00 loops=1)
+                                 Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=11
+ Planning Time: 0.349 ms
+ Execution Time: 5.017 ms
+(38 rows)
+
+=== Q3: Field-wide production on one day (daily morning report for 15 June 2026)
+                                                                QUERY PLAN                                                                
+------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=443.20..443.35 rows=60 width=22) (actual time=0.188..0.190 rows=60.00 loops=1)
+   Sort Key: oil_bbl DESC
+   Sort Method: quicksort  Memory: 27kB
+   Buffers: shared hit=153
+   ->  Bitmap Heap Scan on production_reading  (cost=246.31..441.42 rows=60 width=22) (actual time=0.164..0.170 rows=60.00 loops=1)
+         Recheck Cond: (reading_date = '2026-06-15'::date)
+         Heap Blocks: exact=1
+         Buffers: shared hit=153
+         ->  Bitmap Index Scan on uq_reading_well_date  (cost=0.00..246.30 rows=60 width=0) (actual time=0.151..0.151 rows=60.00 loops=1)
+               Index Cond: (reading_date = '2026-06-15'::date)
+               Index Searches: 62
+               Buffers: shared hit=152
+ Planning Time: 0.164 ms
+ Execution Time: 0.218 ms
+(14 rows)
+
+=== Q4: Maintenance history of one asset (equipment_id 55), newest first
+                                                             QUERY PLAN                                                             
+------------------------------------------------------------------------------------------------------------------------------------
+ Gather Merge  (cost=5471.28..5664.15 rows=1656 width=40) (actual time=161.889..178.059 rows=1645.00 loops=1)
+   Workers Planned: 2
+   Workers Launched: 2
+   Buffers: shared hit=3471
+   ->  Sort  (cost=4471.25..4472.98 rows=690 width=40) (actual time=8.113..8.174 rows=548.33 loops=3)
+         Sort Key: raised_at DESC
+         Sort Method: quicksort  Memory: 151kB
+         Buffers: shared hit=3471
+         Worker 0:  Sort Method: quicksort  Memory: 25kB
+         Worker 1:  Sort Method: quicksort  Memory: 25kB
+         ->  Parallel Seq Scan on work_order  (cost=0.00..4438.72 rows=690 width=40) (actual time=0.014..7.805 rows=548.33 loops=3)
+               Filter: (equipment_id = 55)
+               Rows Removed by Filter: 66122
+               Buffers: shared hit=3397
+ Planning:
+   Buffers: shared hit=29
+ Planning Time: 0.097 ms
+ Execution Time: 178.175 ms
+(18 rows)
+
+=== Q5: Open work-order backlog ordered by urgency (daily planner list)
+                                                                QUERY PLAN                                                                
+------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=5547.70..5547.71 rows=1 width=44) (actual time=143.680..169.823 rows=3.00 loops=1)
+   Sort Key: wo.priority, wo.raised_at
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=3403
+   ->  Nested Loop  (cost=1000.00..5547.69 rows=1 width=44) (actual time=0.295..169.816 rows=3.00 loops=1)
+         Join Filter: (e.equipment_id = wo.equipment_id)
+         Rows Removed by Join Filter: 26
+         Buffers: shared hit=3403
+         ->  Gather  (cost=1000.00..5542.99 rows=1 width=38) (actual time=0.280..169.788 rows=3.00 loops=1)
+               Workers Planned: 2
+               Workers Launched: 2
+               Buffers: shared hit=3397
+               ->  Parallel Seq Scan on work_order wo  (cost=0.00..4542.89 rows=1 width=38) (actual time=0.004..10.915 rows=1.00 loops=3)
+                     Filter: ((status)::text = ANY ('{OPEN,ASSIGNED,IN_PROGRESS}'::text[]))
+                     Rows Removed by Filter: 66669
+                     Buffers: shared hit=3397
+         ->  Seq Scan on equipment e  (cost=0.00..3.20 rows=120 width=14) (actual time=0.005..0.005 rows=9.67 loops=3)
+               Buffers: shared hit=6
+ Planning:
+   Buffers: shared hit=12
+ Planning Time: 0.170 ms
+ Execution Time: 169.847 ms
+(22 rows)
+
+=== Q6: Downtime hours and spare-parts cost per station, 2025 (5-table join with pre-aggregated parts cost)
+                                                                                                 QUERY PLAN                                                                                                 
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=26559.71..26559.72 rows=5 width=80) (actual time=340.974..341.052 rows=5.00 loops=1)
+   Sort Key: (sum((sum(((wop.quantity_used)::numeric * sp.unit_cost_usd))))) DESC
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=7234
+   ->  Finalize GroupAggregate  (cost=26558.00..26559.65 rows=5 width=80) (actual time=340.959..341.046 rows=5.00 loops=1)
+         Group Key: fs.station_code
+         Buffers: shared hit=7234
+         ->  Gather Merge  (cost=26558.00..26559.40 rows=12 width=80) (actual time=340.952..341.033 rows=10.00 loops=1)
+               Workers Planned: 2
+               Workers Launched: 2
+               Buffers: shared hit=7234
+               ->  Sort  (cost=25557.98..25557.99 rows=5 width=80) (actual time=205.078..205.081 rows=3.33 loops=3)
+                     Sort Key: fs.station_code
+                     Sort Method: quicksort  Memory: 25kB
+                     Buffers: shared hit=7234
+                     Worker 0:  Sort Method: quicksort  Memory: 25kB
+                     Worker 1:  Sort Method: quicksort  Memory: 25kB
+                     ->  Partial HashAggregate  (cost=25557.84..25557.92 rows=5 width=80) (actual time=205.042..205.047 rows=3.33 loops=3)
+                           Group Key: fs.station_code
+                           Batches: 1  Memory Usage: 32kB
+                           Buffers: shared hit=7218
+                           Worker 0:  Batches: 1  Memory Usage: 32kB
+                           Worker 1:  Batches: 1  Memory Usage: 32kB
+                           ->  Merge Join  (cost=5774.55..25411.75 rows=14609 width=46) (actual time=97.426..201.154 rows=11475.33 loops=3)
+                                 Merge Cond: (wo.work_order_id = wop.work_order_id)
+                                 Buffers: shared hit=7218
+                                 ->  Sort  (cost=5773.98..5810.51 rows=14609 width=18) (actual time=16.611..17.183 rows=11475.33 loops=3)
+                                       Sort Key: wo.work_order_id
+                                       Sort Method: quicksort  Memory: 2042kB
+                                       Buffers: shared hit=3412
+                                       Worker 0:  Sort Method: quicksort  Memory: 25kB
+                                       Worker 1:  Sort Method: quicksort  Memory: 119kB
+                                       ->  Hash Join  (cost=5.81..4763.44 rows=14609 width=18) (actual time=0.636..14.001 rows=11475.33 loops=3)
+                                             Hash Cond: (e.station_id = fs.station_id)
+                                             Buffers: shared hit=3404
+                                             ->  Hash Join  (cost=4.70..4691.47 rows=14609 width=14) (actual time=0.214..11.299 rows=11475.33 loops=3)
+                                                   Hash Cond: (wo.equipment_id = e.equipment_id)
+                                                   Buffers: shared hit=3401
+                                                   ->  Parallel Seq Scan on work_order wo  (cost=0.00..4647.06 rows=14609 width=14) (actual time=0.007..8.420 rows=11475.33 loops=3)
+                                                         Filter: ((raised_at >= '2025-01-01 00:00:00'::timestamp without time zone) AND (raised_at < '2026-01-01 00:00:00'::timestamp without time zone))
+                                                         Rows Removed by Filter: 55195
+                                                         Buffers: shared hit=3397
+                                                   ->  Hash  (cost=3.20..3.20 rows=120 width=8) (actual time=0.269..0.270 rows=120.00 loops=2)
+                                                         Buckets: 1024  Batches: 1  Memory Usage: 13kB
+                                                         Buffers: shared hit=4
+                                                         ->  Seq Scan on equipment e  (cost=0.00..3.20 rows=120 width=8) (actual time=0.235..0.247 rows=120.00 loops=2)
+                                                               Buffers: shared hit=4
+                                             ->  Hash  (cost=1.05..1.05 rows=5 width=12) (actual time=0.409..0.409 rows=5.00 loops=3)
+                                                   Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                                                   Buffers: shared hit=3
+                                                   ->  Seq Scan on flow_station fs  (cost=0.00..1.05 rows=5 width=12) (actual time=0.402..0.403 rows=5.00 loops=3)
+                                                         Buffers: shared hit=3
+                                 ->  GroupAggregate  (cost=0.56..16918.51 rows=200010 width=36) (actual time=0.080..258.789 rows=199999.50 loops=2)
+                                       Group Key: wop.work_order_id
+                                       Buffers: shared hit=3806
+                                       ->  Nested Loop  (cost=0.56..12418.29 rows=200010 width=13) (actual time=0.062..119.996 rows=200002.50 loops=2)
+                                             Buffers: shared hit=3806
+                                             ->  Index Scan using work_order_part_pkey on work_order_part wop  (cost=0.42..7708.38 rows=200010 width=12) (actual time=0.037..36.254 rows=200002.50 loops=2)
+                                                   Index Searches: 2
+                                                   Buffers: shared hit=3773
+                                             ->  Memoize  (cost=0.14..0.16 rows=1 width=9) (actual time=0.000..0.000 rows=1.00 loops=400005)
+                                                   Cache Key: wop.part_id
+                                                   Cache Mode: logical
+                                                   Hits: 199987  Misses: 8  Evictions: 0  Overflows: 0  Memory Usage: 1kB
+                                                   Buffers: shared hit=33
+                                                   Worker 1:  Hits: 200002  Misses: 8  Evictions: 0  Overflows: 0  Memory Usage: 1kB
+                                                   ->  Index Scan using spare_part_pkey on spare_part sp  (cost=0.13..0.15 rows=1 width=9) (actual time=0.004..0.004 rows=1.00 loops=16)
+                                                         Index Cond: (part_id = wop.part_id)
+                                                         Index Searches: 16
+                                                         Buffers: shared hit=33
+ Planning:
+   Buffers: shared hit=30
+ Planning Time: 0.452 ms
+ Execution Time: 341.605 ms
+(74 rows)
+
+=== Q7: Rank wells by 2025 oil production within their own station (window function)
+                                                                                        QUERY PLAN                                                                                        
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=2409.25..2410.04 rows=15 width=56) (actual time=16.751..16.755 rows=15.00 loops=1)
+   Buffers: shared hit=429
+   ->  Incremental Sort  (cost=2409.25..2425.19 rows=300 width=56) (actual time=16.750..16.753 rows=15.00 loops=1)
+         Sort Key: t.station_code, (rank() OVER w1)
+         Presorted Key: t.station_code
+         Full-sort Groups: 1  Sort Method: quicksort  Average Memory: 26kB  Peak Memory: 26kB
+         Buffers: shared hit=429
+         ->  WindowAgg  (cost=2409.21..2415.19 rows=300 width=56) (actual time=16.724..16.740 rows=25.00 loops=1)
+               Window: w1 AS (PARTITION BY t.station_code ORDER BY t.oil_2025 ROWS UNBOUNDED PRECEDING)
+               Storage: Memory  Maximum Storage: 17kB
+               Buffers: shared hit=429
+               ->  Sort  (cost=2409.19..2409.94 rows=300 width=48) (actual time=16.696..16.699 rows=25.00 loops=1)
+                     Sort Key: t.station_code, t.oil_2025 DESC
+                     Sort Method: quicksort  Memory: 27kB
+                     Buffers: shared hit=429
+                     ->  Subquery Scan on t  (cost=2393.09..2396.84 rows=300 width=48) (actual time=16.619..16.639 rows=60.00 loops=1)
+                           Buffers: shared hit=429
+                           ->  HashAggregate  (cost=2393.09..2396.84 rows=300 width=48) (actual time=16.618..16.633 rows=60.00 loops=1)
+                                 Group Key: fs.station_code, w.well_name
+                                 Batches: 1  Memory Usage: 72kB
+                                 Buffers: shared hit=429
+                                 ->  Hash Join  (cost=669.14..2229.48 rows=21815 width=22) (actual time=1.706..10.977 rows=21900.00 loops=1)
+                                       Hash Cond: (w.station_id = fs.station_id)
+                                       Buffers: shared hit=429
+                                       ->  Hash Join  (cost=668.03..2122.57 rows=21815 width=18) (actual time=1.676..7.720 rows=21900.00 loops=1)
+                                             Hash Cond: (pr.well_id = w.well_id)
+                                             Buffers: shared hit=428
+                                             ->  Bitmap Heap Scan on production_reading pr  (cost=665.68..2058.90 rows=21815 width=10) (actual time=1.649..3.469 rows=21900.00 loops=1)
+                                                   Recheck Cond: ((reading_date >= '2025-01-01'::date) AND (reading_date <= '2025-12-31'::date))
+                                                   Heap Blocks: exact=183
+                                                   Buffers: shared hit=427
+                                                   ->  Bitmap Index Scan on uq_reading_well_date  (cost=0.00..660.22 rows=21815 width=0) (actual time=1.606..1.606 rows=21900.00 loops=1)
+                                                         Index Cond: ((reading_date >= '2025-01-01'::date) AND (reading_date <= '2025-12-31'::date))
+                                                         Index Searches: 62
+                                                         Buffers: shared hit=244
+                                             ->  Hash  (cost=1.60..1.60 rows=60 width=16) (actual time=0.017..0.018 rows=60.00 loops=1)
+                                                   Buckets: 1024  Batches: 1  Memory Usage: 11kB
+                                                   Buffers: shared hit=1
+                                                   ->  Seq Scan on well w  (cost=0.00..1.60 rows=60 width=16) (actual time=0.005..0.010 rows=60.00 loops=1)
+                                                         Buffers: shared hit=1
+                                       ->  Hash  (cost=1.05..1.05 rows=5 width=12) (actual time=0.020..0.020 rows=5.00 loops=1)
+                                             Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                                             Buffers: shared hit=1
+                                             ->  Seq Scan on flow_station fs  (cost=0.00..1.05 rows=5 width=12) (actual time=0.015..0.016 rows=5.00 loops=1)
+                                                   Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=8
+ Planning Time: 0.299 ms
+ Execution Time: 16.922 ms
+(49 rows)
+
